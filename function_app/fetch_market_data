@@ -1,0 +1,63 @@
+import os
+import pyodbc
+import yfinance as yf
+from datetime import datetime, UTC
+
+server = os.getenv("DB_SERVER")
+database = os.getenv("DB_NAME")
+username = os.getenv("DB_USER")
+password = os.getenv("DB_PASSWORD")
+
+assets = [
+    ("BTC-USD", "Bitcoin"),
+    ("GLD", "Gold ETF"),
+    ("TSLA", "Tesla"),
+    ("MSFT", "Microsoft"),
+    ("NVDA", "NVIDIA"),
+    ("AMZN", "Amazon")
+]
+
+def fetch_prices():
+    rows = []
+    now = datetime.now(UTC)
+
+    for symbol, asset_name in assets:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period="1d")
+
+        if not hist.empty:
+            latest_price = float(hist["Close"].iloc[-1])
+            rows.append((symbol, asset_name, latest_price, "USD", now))
+        else:
+            print(f"No data found for {symbol}")
+
+    return rows
+
+def insert_data(rows):
+    conn = pyodbc.connect(
+        "DRIVER={ODBC Driver 18 for SQL Server};"
+        f"SERVER={server};"
+        f"DATABASE={database};"
+        f"UID={username};"
+        f"PWD={password};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=yes;"
+        "Connection Timeout=60;"
+    )
+
+    cursor = conn.cursor()
+
+    for row in rows:
+        cursor.execute("""
+        INSERT INTO market_prices (symbol, asset_name, price, currency, fetched_at)
+        VALUES (?, ?, ?, ?, ?)
+        """, row)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+rows = fetch_prices()
+insert_data(rows)
+
+print("Real market data inserted successfully")
