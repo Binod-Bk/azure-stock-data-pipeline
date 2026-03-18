@@ -3,6 +3,9 @@ import pyodbc
 import yfinance as yf
 from datetime import datetime, UTC
 
+from dotenv import load_dotenv
+load_dotenv()
+
 server = os.getenv("DB_SERVER")
 database = os.getenv("DB_NAME")
 username = os.getenv("DB_USER")
